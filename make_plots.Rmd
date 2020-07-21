@@ -143,12 +143,60 @@ p_dur_brain
 ```
 
 
+## PBMC68k
+
+```{r}
+pbmc68k_bench_res <- read_tsv("data/pbmc68k_bench_res.tsv", col_types = "cccddd")
+pbmc68k_bench_res
+```
+
+
+```{r}
+p_dur_pbmc68k <- pbmc68k_bench_res %>%
+  add_row(job_id = "62569214", extension_id = "6fa46", method = "DESeq2", timing_user = NA, timing_system = NA, timing_elapsed = NA) %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  ggplot(aes(y = timing_elapsed / 60, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    annotate("text", x = 6.3, y = 200, label = "32,738 genes x 68,579 cells", hjust = 1, vjust = 1) +
+    annotate("text", x = 1, y = 30, label = "Process crashed: out of memory!", size = 4, hjust = 0, vjust = 0.5) +
+    annotate("text", x = 2, y = 30, label = "Process crashed: out of memory!", size = 4, hjust = 0, vjust = 0.5) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 3)), 
+                       limits = c(0, 200),
+                       breaks = c(0, 30, 60, 90, 120, 150, 180),
+                       position = "right",
+                       sec.axis = sec_axis(trans = ~ .x / median(pbmc68k_bench_res$timing_elapsed[pbmc68k_bench_res$method == "glm_gp"]) * 60,
+                                           breaks = c(1, 2, 4, 8, 16),
+                                           name = "Relative Duration")) +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on disk"=  "glmGamPoi\non-disk",
+                                "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+    xlab("") + ylab("Duration [min]") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+
+
+p_dur_pbmc68k
+
+```
+
+
+## Putting it together
+
+
 
 ```{r}
 
 cowplot::plot_grid(
-  cowplot::plot_grid(p_dur_pbmc4k, p_dur_mouse, p_dur_brain, nrow = 1, align = "v",
-                    labels = c("PBMC", "Gastrulation", "Brain")),
+  cowplot::plot_grid(p_dur_pbmc4k, p_dur_brain, p_dur_pbmc68k, nrow = 1, align = "v",
+                    labels = c("PBMC4k", "Brain", "PBM68k")),
   nrow = 1
 )
 
@@ -185,7 +233,15 @@ brain_bench_res %>%
   summarize(min = min(relative),
             max = max(relative),
             median = median(relative)) %>%
-  mutate(data = "Brain20k")) %>%
+  mutate(data = "Brain20k"),
+pbmc68k_bench_res %>%
+  group_by(extension_id) %>% 
+  mutate(relative = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%
+  group_by(method) %>%
+  summarize(min = min(relative),
+            max = max(relative),
+            median = median(relative)) %>%
+  mutate(data = "PBMC68k")) %>%
   arrange(min)
 
 
