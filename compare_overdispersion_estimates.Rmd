@@ -1,0 +1,25 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+Compare dispersion optimum
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

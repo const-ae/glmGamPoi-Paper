@@ -1,0 +1,936 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+
+
+```{r}
+library(tidyverse)
+
+```
+
+# Benchmark Results:
+
+## PBMC4k
+
+```{r}
+pbmc4k_bench_res <- read_tsv("data/pbmc4k_bench_res.tsv", col_types = "cccddd")
+pbmc4k_bench_res
+```
+
+
+```{r}
+p_dur_pbmc4k <- pbmc4k_bench_res %>%
+  filter(method != "DESeq2 glmGamPoi") %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  ggplot(aes(y = timing_elapsed / 60, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    annotate("text", x = 6.3, y = 47, label = "33,694 genes x 4,340 cells", hjust = 1, vjust = 1) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 0)), 
+                       limits = c(0, 47),
+                       breaks = seq(0, 45, by = 5),
+                       position = "right",
+                       sec.axis = sec_axis(trans = ~ .x / median(pbmc4k_bench_res$timing_elapsed[pbmc4k_bench_res$method == "glm_gp"]) * 60,
+                                           breaks = c(1, 2, 4, 8, 16),
+                                           name = "Relative Duration")) +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on disk"=  "glmGamPoi\non-disk",
+                                "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+    xlab("") + ylab("Duration [min]") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+
+p_dur_pbmc4k
+
+# p_dur_rel_pbmc4k <- pbmc4k_bench_res %>%
+#   filter(method != "DESeq2 glmGamPoi") %>%
+#   mutate(method = factor(method, levels = c("glm_gp", "glm_gp on disk",
+#                                              "glm_gp overdispersion = 0",
+#                                              "DESeq2 with glmGamPoi",
+#                                              "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+#   mutate(method =  fct_rev(method)) %>%
+#   group_by(job_id) %>%
+#   mutate(relative_time = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%
+#   ggplot(aes(y = relative_time, x = method)) +
+#     stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+#     ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+#     annotate("text", x = 6.3, y = 17, label = "33,694 genes x 4,340 cells", hjust = 1, vjust = 1) +
+#     coord_flip() +
+#     geom_hline(yintercept = 1) +
+#     scale_y_continuous(expand = expand_scale(add = c(0, 0)),
+#                        limits = c(0, 17),
+#                        breaks = c(0.5, 1, 2, 4, 8, 16),
+#                        labels = c("", "1", "2", "4", "8", "16"),
+#                        position = "right") +
+#     scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on disk"=  "glmGamPoi\non-disk",
+#                                 "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+#                                 "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+#                                 "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+#     xlab("") + ylab("Duration Relative to glmGamPoi") +
+#     cowplot::theme_cowplot() +
+#     theme(plot.caption = element_text(vjust = 0, hjust = 0))
+```
+
+
+
+## Mouse Gastrulation
+
+```{r}
+mouse_bench_res <- read_tsv("data/mouse_bench_res.tsv", col_types = "cccddd")
+mouse_bench_res
+```
+
+
+```{r}
+p_dur_mouse <- mouse_bench_res %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on_disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  ggplot(aes(y = timing_elapsed / 60 / 60, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    annotate("text", x = 6.3, y = 9, label = "29,453 genes x 30,703 cells", hjust = 1, vjust = 1) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 0)), 
+                       limits = c(0, 9),
+                       breaks = 0:9,
+                       position = "right") +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on_disk"=  "glmGamPoi\non-disk",
+                                "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+    xlab("") + ylab("Duration [hours]") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+
+p_dur_rel_mouse <- mouse_bench_res %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on_disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  group_by(job_id) %>%
+  mutate(relative_time = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%  
+  ggplot(aes(y = relative_time, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    geom_hline(yintercept = 1) +
+    annotate("text", x = 6.3, y = 17, label = "29,453 genes x 30,703 cells", hjust = 1, vjust = 1) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 0)),
+                       limits = c(0, 17),
+                       breaks = c(0.5, 1, 2, 4, 8, 16),
+                       labels = c("", "1", "2", "4", "8", "16"),
+                       position = "right") +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on_disk"=  "glmGamPoi\non-disk",
+                                "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+    xlab("") + ylab("Duration Relative to glmGamPoi") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+p_dur_mouse
+p_dur_rel_mouse
+
+cowplot::save_plot("plots/mouse_duration.pdf", p_dur_mouse)
+
+```
+
+
+
+
+
+## Brain20k
+
+```{r}
+brain_bench_res <- read_tsv("data/brain_bench_res.tsv", col_types = "cccddd")
+brain_bench_res
+```
+
+
+```{r}
+p_dur_brain <- brain_bench_res %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  ggplot(aes(y = timing_elapsed / 60, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    annotate("text", x = 6.3, y = 120, label = "27,998 genes x 20,000 cells", hjust = 1, vjust = 1) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 3)), 
+                         breaks = c(0, 30, 60, 90, 120),
+                         position = "right") +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on disk"=  "glmGamPoi\non-disk",
+                                "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+    xlab("") + ylab("Duration [min]") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+
+p_dur_rel_brain <- brain_bench_res %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  group_by(job_id) %>%
+  mutate(relative_timing = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%
+  ggplot(aes(y = relative_timing, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    geom_hline(yintercept = 1) +
+    annotate("text", x = 6.3, y = 16, label = "27,998 genes x 20,000 cells", hjust = 1, vjust = 1) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 0)),
+                   limits = c(0, 16),
+                   breaks = c(0.5, 1, 2, 4, 8, 16),
+                   labels = c("", "1", "2", "4", "8", "16"),
+                   position = "right") +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi\nin-memory",  "glm_gp on disk"=  "glmGamPoi\non-disk",
+                                "glm_gp overdispersion = 0" = "glmGamPoi\noverdispersion = 0",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 +\nglmGamPoi")) +
+    xlab("") + ylab("Duration Relative to glmGamPoi") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+p_dur_brain
+p_dur_rel_brain
+
+```
+
+
+
+```{r}
+
+cowplot::plot_grid(
+  cowplot::plot_grid(p_dur_pbmc4k, p_dur_mouse, p_dur_brain, nrow = 1, align = "v",
+                    labels = c("PBMC", "Gastrulation", "Brain")),
+  cowplot::plot_grid(p_dur_rel_pbmc4k, p_dur_rel_mouse, p_dur_rel_brain, nrow = 1, align = "v",
+                     labels = c("PBMC", "Gastrulation", "Brain")),
+  nrow = 2
+)
+
+cowplot::save_plot("plots/three_duration_plots.pdf", last_plot(), ncol = 3, nrow = 2)
+
+```
+
+
+
+
+
+
+```{r}
+bind_rows(pbmc4k_bench_res %>%
+  group_by(extension_id) %>% 
+  mutate(relative = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%
+  group_by(method) %>%
+  summarize(min = min(relative),
+            max = max(relative),
+            median = median(relative)) %>%
+  mutate(data = "PBMC4k"),
+mouse_bench_res %>%
+  group_by(extension_id) %>% 
+  mutate(relative = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%
+  group_by(method) %>%
+  summarize(min = min(relative),
+            max = max(relative),
+            median = median(relative)) %>%
+  mutate(data = "Mouse Gastrulation"),
+brain_bench_res %>%
+  group_by(extension_id) %>% 
+  mutate(relative = timing_elapsed / timing_elapsed[method == "glm_gp"]) %>%
+  group_by(method) %>%
+  summarize(min = min(relative),
+            max = max(relative),
+            median = median(relative)) %>%
+  mutate(data = "Brain20k")) %>%
+  arrange(min)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Output
+
+```{r}
+pbmc4k_coef_df <- read_tsv("data/pbmc4k_coef_df.tsv")
+pbmc4k_coef_df
+
+pbmc4k_disp_df <- read_tsv("data/pbmc4k_disp_df.tsv")
+pbmc4k_disp_df
+```
+
+
+```{r}
+pbmc4k_coef_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(value = ifelse(is.na(value), -Inf, value)) %>%
+  ggplot(aes(x = glm_gp, y = value)) +
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    labs(title = "Intercept of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+
+pbmc4k_disp_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  # mutate(glm_gp = ifelse(glm_gp == 0, 1e-300, glm_gp)) %>%
+  # mutate(value = ifelse(is.na(value), 1e300, value)) %>%
+  ggplot(aes(x = glm_gp, y = value)) +
+    ggpointdensity::geom_pointdensity(method = "default") +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_x_log10(limits = c(1e-10, 1e5), oob = scales::squish, expand = expand_scale(add = 0)) + 
+    scale_y_log10(limits = c(1e-10, 1e5), oob = scales::squish, expand = expand_scale(add = 0)) +
+    scale_color_viridis_c(guide = "none") +
+    labs(title = "Dispersion of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+```
+
+
+```{r}
+p_pbmc4k_coef <- pbmc4k_coef_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(value = ifelse(is.na(value), -Inf, value)) %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <-  ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_color_viridis_c(guide = "none") +
+      scale_x_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
+      scale_y_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
+      labs(x = "glmGamPoi", y = method$method) +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+
+
+
+p_pbmc4k_disp <- pbmc4k_disp_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <- ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_x_log10(name = "glmGamPoi", limits = c(1e-9, 1e4), 
+                    breaks = c(1e-6, 1e-2, 100),
+                    labels = expression(10^-6, 0.01, 100)) + 
+      scale_y_log10(name = method$method, limits = c(1e-9, 1e4),
+                    breaks = c(1e-6, 1e-2, 100),
+                    labels = expression(10^-6, 0.01, 100)) +
+      scale_color_viridis_c(guide = "none") +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+```
+
+```{r}
+cowplot::plot_grid(plotlist = list(NULL, p_pbmc4k_coef + cowplot::draw_plot_label("Beta", hjust = 0, vjust = 0, x = 0.01, y = 1.02), 
+                                   NULL, p_pbmc4k_disp + cowplot::draw_plot_label("Dispersion", hjust = 0, vjust = 0, x = 0.01, y = 1.02)),
+                   nrow = 4, ncol = 1,
+                   rel_heights = c(0.15, 1, 0.15, 1))
+cowplot::save_plot("plots/pbmc4k_coef_disp_pval.pdf", last_plot(), ncol = 3, nrow = 2, base_asp = 1, base_height = 3.2)
+```
+
+
+
+
+
+```{r}
+
+mouse_coef_df <- read_tsv("data/mouse_coef_df.tsv")
+
+mouse_disp_df <- read_tsv("data/mouse_disp_df.tsv")
+
+mouse_pval_df <- read_tsv("data/mouse_pval_df.tsv")
+
+```
+
+
+```{r}
+mouse_coef_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(value = ifelse(is.na(value), -Inf, value)) %>%
+  ggplot(aes(x = glm_gp, y = value)) +
+    ggpointdensity::geom_pointdensity() +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_color_viridis_c(guide = "none") +
+    labs(title = "Tomato Coefficient of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+
+mouse_disp_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  ggplot(aes(x = glm_gp, y = value)) +
+    ggpointdensity::geom_pointdensity() +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_x_log10() + scale_y_log10() +
+    scale_color_viridis_c(guide = "none") +
+    labs(title = "Dispersion of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+```
+
+
+```{r}
+p_mouse_coef <- mouse_coef_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(value = ifelse(is.na(value), -Inf, value)) %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <-  ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_color_viridis_c(guide = "none") +
+      scale_x_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
+      scale_y_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
+      labs(x = "glmGamPoi", y = method$method) +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+
+# cowplot::save_plot("plots/mouse_coef.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1)
+
+
+p_mouse_disp <- mouse_disp_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <- ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_x_log10(name = "glmGamPoi", limits = c(1e-9, 1e4), 
+                    breaks = c(1e-6, 1e-2, 100),
+                    labels = expression(10^-6, 0.01, 100)) + 
+      scale_y_log10(name = method$method, limits = c(1e-9, 1e4),
+                    breaks = c(1e-6, 1e-2, 100),
+                    labels = expression(10^-6, 0.01, 100)) +
+      scale_color_viridis_c(guide = "none") +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+# cowplot::save_plot("plots/mouse_disp.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1)
+
+
+p_mouse_pval <- mouse_pval_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  mutate(glm_gp = ifelse(glm_gp == 0, 1e-200, glm_gp),
+         value = ifelse(value == 0, 1e-200, value)) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <- ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_x_log10(name = "glmGamPoi", limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
+                    breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
+                    labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
+      scale_y_log10(name = method$method, limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
+                    breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
+                    labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
+      scale_color_viridis_c(guide = "none") +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+
+# cowplot::save_plot("plots/mouse_pval.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1)
+```
+
+
+
+```{r}
+cowplot::plot_grid(plotlist = list(NULL, p_mouse_coef + cowplot::draw_plot_label("Beta", hjust = 0, vjust = 0, x = 0.01, y = 1.02), 
+                                   NULL, p_mouse_disp + cowplot::draw_plot_label("Dispersion", hjust = 0, vjust = 0, x = 0.01, y = 1.02), 
+                                   NULL, p_mouse_pval + cowplot::draw_plot_label("P-value", hjust = 0, vjust = 0, x = 0.01, y = 1.02)),
+                   nrow = 6, ncol = 1,
+                   rel_heights = c(0.15, 1, 0.15, 1, 0.15, 1))
+cowplot::save_plot("plots/mouse_coef_disp_pval.pdf", last_plot(), ncol = 3, nrow = 3, base_asp = 1, base_height = 3.2)
+```
+
+
+
+
+```{r}
+
+brain_coef_df <- read_tsv("data/brain_coef_df.tsv")
+
+brain_disp_df <- read_tsv("data/brain_disp_df.tsv")
+
+brain_pval_df <- read_tsv("data/brain_pval_df.tsv")
+```
+
+
+```{r}
+brain_coef_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(value = ifelse(is.na(value), -Inf, value)) %>%
+  ggplot(aes(x = glm_gp, y = value)) +
+    ggpointdensity::geom_pointdensity() +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_x_continuous(limits = c(NA, 10)) +
+    scale_color_viridis_c(guide = "none") +
+    labs(title = "MouseA Coefficient of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+
+brain_disp_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  ggplot(aes(x = glm_gp, y = value)) +
+    ggpointdensity::geom_pointdensity() +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_x_log10() + scale_y_log10() +
+    scale_color_viridis_c(guide = "none") +
+    labs(title = "Dispersion of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+brain_pval_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  ggplot(aes(x = glm_gp + 1e-50, y = value + 1e-50)) +
+    ggpointdensity::geom_pointdensity(size = 0.2) +
+    geom_abline(intercept = 0, slope = 1) +
+    facet_wrap(~ method, scales = "fixed") +
+    scale_x_log10(limits = c(1e-16, 1), oob = scales::squish, expand = expand_scale(add = 0)) +
+  scale_y_log10(limits = c(1e-16, 1), oob = scales::squish, expand = expand_scale(add = 0)) +
+    scale_color_viridis_c(guide = "none") +
+    labs(title = "p-value of __ vs glmGamPoi", x = "glmGamPoi", y = "") +
+    cowplot::theme_cowplot()
+
+
+```
+
+
+
+
+```{r}
+p_brain_coef <- brain_coef_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(value = ifelse(is.na(value), -Inf, value)) %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <-  ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_color_viridis_c(guide = "none") +
+      scale_x_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
+      scale_y_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
+      labs(x = "glmGamPoi", y = method$method) +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+
+
+p_brain_disp <- brain_disp_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <- ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_x_log10(name = "glmGamPoi", limits = c(1e-9, 1e4), 
+                    breaks = c(1e-6, 1e-2, 100),
+                    labels = expression(10^-6, 0.01, 100)) + 
+      scale_y_log10(name = method$method, limits = c(1e-9, 1e4),
+                    breaks = c(1e-6, 1e-2, 100),
+                    labels = expression(10^-6, 0.01, 100)) +
+      scale_color_viridis_c(guide = "none") +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+
+
+p_brain_pval <- brain_pval_df %>%
+  pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
+  mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
+                                             "edgeR"), ordered = TRUE)) %>% 
+  mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  mutate(glm_gp = ifelse(glm_gp == 0, 1e-200, glm_gp),
+         value = ifelse(value == 0, 1e-200, value)) %>%
+  group_by(method) %>%
+  group_map(function(df, method){
+    p <- ggplot(df, aes(x = glm_gp, y = value)) +
+      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
+      geom_abline(intercept = 0, slope = 1) +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      scale_x_log10(name = "glmGamPoi", limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
+                    breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
+                    labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
+      scale_y_log10(name = method$method, limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
+                    breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
+                    labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
+      scale_color_viridis_c(guide = "none") +
+      cowplot::theme_cowplot()
+    if(method$method != "DESeq2"){
+      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+    }else{
+      p
+    }
+  }) %>%
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+
+```
+
+```{r}
+cowplot::plot_grid(plotlist = list(NULL, p_brain_coef + cowplot::draw_plot_label("Beta", hjust = 0, vjust = 0, x = 0.01, y = 1.02), 
+                                   NULL, p_brain_disp + cowplot::draw_plot_label("Dispersion", hjust = 0, vjust = 0, x = 0.01, y = 1.02), 
+                                   NULL, p_brain_pval + cowplot::draw_plot_label("P-value", hjust = 0, vjust = 0, x = 0.01, y = 1.02)),
+                   nrow = 6, ncol = 1,
+                   rel_heights = c(0.15, 1, 0.15, 1, 0.15, 1))
+cowplot::save_plot("plots/brain_coef_disp_pval.pdf", last_plot(), ncol = 3, nrow = 3, base_asp = 1, base_height = 3.2)
+```
+
+
+
+
+# DESeq2/glmGamPoi p-value profiles
+
+Compare expression profiles for genes for which glmGamPoi and DESeq2 get very different p-values.
+
+```{r}
+sce <- TENxBrainData::TENxBrainData20k()
+```
+
+
+```{r}
+set.seed(1)
+very_significant_genes_df <- brain_pval_df %>%
+  filter(glm_gp < 1e-25 & DESeq2 < 1e-25) %>%
+  sample_n(3)
+
+
+very_different_genes_df <- brain_pval_df %>%
+  filter(glm_gp > 0.1 & DESeq2 < 1e-40) %>%
+  sample_n(3)
+
+
+min_pval <- 1e-100  
+
+p_scatter <- brain_pval_df %>%
+  mutate(glm_gp = ifelse(glm_gp < min_pval, min_pval, glm_gp),
+         DESeq2 = ifelse(DESeq2 < min_pval, min_pval, DESeq2)) %>%
+  ggplot(aes(x = glm_gp, y = DESeq2)) +
+    geom_abline(color = "red") +
+    # geom_point(alpha = 0.3, color = "black", size = 0.3) +
+    ggrastr::geom_point_rast(alpha = 0.3, size = 0.3) +
+    geom_point(data = mutate(very_significant_genes_df, glm_gp = ifelse(glm_gp < min_pval, min_pval, glm_gp), DESeq2 = ifelse(DESeq2 < min_pval, min_pval, DESeq2)) , 
+               color = "#a820e3", size = 2) +
+    geom_point(data = mutate(very_different_genes_df, glm_gp = ifelse(glm_gp < min_pval, min_pval, glm_gp), DESeq2 = ifelse(DESeq2 < min_pval, min_pval, DESeq2)) , 
+               color = "#e6871c", size = 2) +
+    scale_x_log10(name = "glmGamPoi", limits = c(min_pval, 1), expand = expansion(add = c(0.5, 0.5)), 
+                    breaks = c(1e-100, 1e-75, 1e-50, 1e-25, 1),
+                    labels = expression(10^-100, 10^-75, 10^-50, 10^-25, 1)) +
+    scale_y_log10(name = "DESeq2", limits = c(min_pval, 1), expand = expansion(add = c(0.5, 0)), 
+                    breaks = c(1e-100, 1e-75, 1e-50, 1e-25, 1),
+                    labels = expression(10^-100, 10^-75, 10^-50, 10^-25, 1)) +
+    labs(title = "p-values of DESeq2 vs glmGamPoi", subtitle = "Brain20k dataset") +
+    cowplot::theme_cowplot() +
+    # theme(plot.title = ggtext::element_markdown()) +
+    NULL
+  
+
+p_scatter
+```
+
+
+
+```{r}
+tmp <- assay(sce)[str_replace(very_significant_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
+rownames(tmp) <- very_significant_genes_df$gene
+very_significant_genes_df$max_count <- rowMaxs(tmp)
+
+p_comp_similar <- as_tibble(t(tmp)) %>%
+  mutate(mouse = colData(sce)$Mouse,
+         cell = seq_len(n())) %>%
+  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  ggplot(aes(x = mouse, y = count)) +
+    ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
+    ggsignif::geom_signif(data = very_significant_genes_df,
+                          aes(annotations = "", y_position = max_count * 1.1),
+                          xmin = "A", xmax = "B",
+                          y_position = 5, manual  = TRUE) +
+    geom_text(data = very_significant_genes_df, x = 1.5, 
+              aes(y = max_count * 1.15, label = paste0("glmGamPoi: ",scales::scientific(glm_gp, digits = 1), "\n",
+                                                   "DESeq2: ", scales::scientific(DESeq2, digits = 1))),
+              hjust = 0.5, vjust = 0, lineheight = 0.8) +
+    stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
+    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    labs(title = "<span style='color: #a820e3'>Genes</span> with similar p-values", x = "") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = ggtext::element_markdown())
+
+
+tmp2 <- assay(sce)[str_replace(very_different_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
+rownames(tmp2) <- very_different_genes_df$gene
+very_different_genes_df$max_count <- rowMaxs(tmp2)
+
+p_comp_different <- as_tibble(t(tmp2)) %>%
+  mutate(mouse = colData(sce)$Mouse,
+         cell = seq_len(n())) %>%
+  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  ggplot(aes(x = mouse, y = count)) +
+    ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
+    ggsignif::geom_signif(data = very_different_genes_df,
+                          aes(annotations = "", y_position = max_count * 1.1),
+                          xmin = "A", xmax = "B",
+                          y_position = 5, manual  = TRUE) +
+    geom_text(data = very_different_genes_df, x = 1.5, 
+              aes(y = max_count * 1.15, label = paste0("glmGamPoi: ", scales::pvalue(glm_gp), "\n",
+                                                   "DESeq2: ", scales::scientific(DESeq2, digits = 1))),
+              hjust = 0.5, vjust = 0, lineheight = 0.8) +
+    stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
+    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    labs(title = "<span style='color: #e6871c'>Genes</span> with very different p-values", x = "") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = ggtext::element_markdown())
+p_comp_different
+
+```
+
+
+
+
+```{r}
+cowplot::plot_grid(
+  p_scatter, cowplot::plot_grid(p_comp_similar, p_comp_different, nrow = 2), 
+  ncol = 2, rel_widths = c(1.5, 2)
+)
+cowplot::save_plot("plots/brain_p-value_comparison.pdf", last_plot(), nrow = 2, ncol = 3, base_height = 2.8)
+
+```
+
+Mouse Gastrulation
+
+```{r}
+sce <- readRDS("prepare_data/data/mouse_gastrulation_chimera_summarized_experiment.RDS")
+```
+
+
+```{r}
+set.seed(1)
+very_significant_genes_df <- mouse_pval_df %>%
+  filter(glm_gp < 1e-25 & DESeq2 < 1e-25 & abs(log10(glm_gp/ DESeq2)) < 4) %>%
+  sample_n(3)
+
+
+very_different_genes_df <- mouse_pval_df %>%
+  filter(glm_gp < 1e-50 & DESeq2 > 1e-8) %>%
+  sample_n(3)
+
+
+min_pval <- 1e-100  
+
+p_scatter <- mouse_pval_df %>%
+  mutate(glm_gp = ifelse(glm_gp < min_pval, min_pval, glm_gp),
+         DESeq2 = ifelse(DESeq2 < min_pval, min_pval, DESeq2)) %>%
+  ggplot(aes(x = glm_gp, y = DESeq2)) +
+    geom_abline(color = "red") +
+    # geom_point(alpha = 0.3, color = "black", size = 0.3) +
+    ggrastr::geom_point_rast(alpha = 0.3, size = 0.3) +
+    geom_point(data = mutate(very_significant_genes_df, glm_gp = ifelse(glm_gp < min_pval, min_pval, glm_gp), DESeq2 = ifelse(DESeq2 < min_pval, min_pval, DESeq2)) , 
+               color = "#a820e3", size = 2) +
+    geom_point(data = mutate(very_different_genes_df, glm_gp = ifelse(glm_gp < min_pval, min_pval, glm_gp), DESeq2 = ifelse(DESeq2 < min_pval, min_pval, DESeq2)) , 
+               color = "#e6871c", size = 2) +
+    scale_x_log10(name = "glmGamPoi", limits = c(min_pval, 1), expand = expansion(add = c(0.5, 0.5)), 
+                    breaks = c(1e-100, 1e-75, 1e-50, 1e-25, 1),
+                    labels = expression(10^-100, 10^-75, 10^-50, 10^-25, 1)) +
+    scale_y_log10(name = "DESeq2", limits = c(min_pval, 1), expand = expansion(add = c(0.5, 0)), 
+                    breaks = c(1e-100, 1e-75, 1e-50, 1e-25, 1),
+                    labels = expression(10^-100, 10^-75, 10^-50, 10^-25, 1)) +
+    labs(title = "p-values of DESeq2 vs glmGamPoi", subtitle = "Mouse Gastrulation dataset") +
+    cowplot::theme_cowplot() +
+    # theme(plot.title = ggtext::element_markdown()) +
+    NULL
+  
+
+p_scatter
+```
+
+
+
+```{r}
+tmp <- assay(sce)[str_replace(very_significant_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
+rownames(tmp) <- very_significant_genes_df$gene
+very_significant_genes_df$max_count <- rowMaxs(tmp)
+
+p_comp_similar <- as_tibble(t(tmp)) %>%
+  mutate(tomato = ifelse(colData(sce)$tomato, "knockout", "wildtype"),
+         cell = seq_len(n())) %>%
+  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  ggplot(aes(x = tomato, y = count)) +
+    ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
+    ggsignif::geom_signif(data = very_significant_genes_df,
+                          aes(annotations = "", y_position = max_count * 1.1),
+                          xmin = "wildtype", xmax = "knockout", y_position = 5,
+                          manual  = TRUE) +
+    geom_text(data = very_significant_genes_df, x = 1.5, 
+              aes(y = max_count * 1.15, label = paste0("glmGamPoi: ",scales::scientific(glm_gp, digits = 1), "\n",
+                                                   "DESeq2: ", scales::scientific(DESeq2, digits = 1))),
+              hjust = 0.5, vjust = 0, lineheight = 0.8) +
+    stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
+    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    labs(title = "<span style='color: #a820e3'>Genes</span> with similar p-values", x = "") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = ggtext::element_markdown())
+
+
+tmp2 <- assay(sce)[str_replace(very_different_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
+rownames(tmp2) <- very_different_genes_df$gene
+very_different_genes_df$max_count <- rowMaxs(tmp2)
+
+p_comp_different <- as_tibble(t(tmp2)) %>%
+  mutate(tomato = ifelse(colData(sce)$tomato, "knockout", "wildtype"),
+         cell = seq_len(n())) %>%
+  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  ggplot(aes(x = tomato, y = count)) +
+    ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
+    ggsignif::geom_signif(data = very_different_genes_df,
+                          aes(annotations = "", y_position = max_count * 1.1),
+                          xmin = "wildtype", xmax = "knockout", y_position = 5,
+                          manual  = TRUE) +
+    geom_text(data = very_different_genes_df, x = 1.5, 
+              aes(y = max_count * 1.15, label = paste0("glmGamPoi: ", scales::scientific(glm_gp, digits = 1), "\n",
+                                                   "DESeq2: ", scales::scientific(DESeq2, digits = 1))),
+              hjust = 0.5, vjust = 0, lineheight = 0.8) +
+    stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
+    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    labs(title = "<span style='color: #e6871c'>Genes</span> with very different p-values", x = "") +
+    cowplot::theme_cowplot() +
+    theme(plot.title = ggtext::element_markdown())
+
+p_comp_similar
+p_comp_different
+
+```
+
+
+
+
+```{r}
+cowplot::plot_grid(
+  p_scatter, cowplot::plot_grid(p_comp_similar, p_comp_different, nrow = 2, align = "v"), 
+  ncol = 2, rel_widths = c(1.5, 2)
+)
+cowplot::save_plot("plots/mouse_p-value_comparison.pdf", last_plot(), nrow = 2, ncol = 3, base_height = 2.8)
+```
