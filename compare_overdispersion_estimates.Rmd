@@ -4,11 +4,287 @@ output: html_notebook
 ---
 
 
+```{r}
+library(tidyverse)
+```
 
-Compare dispersion optimum
+
+Load PBMC4k data
+
+```{r}
+print("Read Dataset")
+sce <- TENxPBMCData::TENxPBMCData("pbmc4k")
+print(dim(sce))
+
+# Make sure matrix is in memory
+assay(sce) <- as.matrix(assay(sce))
+
+# # To speed things up for now
+non_zero_rows <- matrixStats::rowSums2(assay(sce)) > 0
+sce <- sce[sample(which(non_zero_rows), size = 1000), ]
+
+print(dim(sce))
+
+# Calculate size factors
+
+size_factors <- scran::calculateSumFactors(assay(sce))
+```
+
+
+
+Do initial fit, to have equal mu for each method:
+
+```{r}
+library(glmGamPoi)
+fit <- glm_gp(sce, design = ~ 1, size_factors = size_factors, 
+              overdispersion_shrinkage = FALSE, verbose = TRUE)
+
+```
+
+
+```{r}
+offset_matrix <- matrix(fit$size_factors, nrow = nrow(sce), ncol = ncol(sce), byrow = TRUE)
+roughDisp <- glmGamPoi:::estimate_dispersions_roughly(assay(sce), model_matrix = fit$model_matrix, 
+                                                      offset_matrix = offset_matrix)
+```
+
+
+```{r}
+log_likelihood <- function(y, mu, overdispersion, model_matrix){
+  w_diag <- 1 / (1 / mu + overdispersion)
+  b <- t(model_matrix) %*% (model_matrix * w_diag)
+  cr <- - 0.5 * log(det(b))
+  
+  cr + sum(dnbinom(y, mu = mu, size = 1/overdispersion, log = TRUE))
+}
+```
+
+
+`glmGamPoi:::conventional_loglikelihood_fast` and `log_likelihood()` are up to constant equivalent:
+
+```{r}
+y <- rpois(n = 10, lambda = 3)
+mu <- rnorm(n = 10, mean = 3, sd = 0.1)
+model_matrix <- matrix(1, nrow = 10, ncol = 1)
+
+log_thetas <- seq(-55, 35, l = 101)
+v1 <- sapply(log_thetas, function(lt) log_likelihood(y, mu, exp(lt), model_matrix))
+v2 <- sapply(log_thetas, function(lt) glmGamPoi:::conventional_loglikelihood_fast(y, mu, lt, model_matrix, do_cr_adj = TRUE))
+
+```
+
+`edgeR:::cxx_compute_apl` and `log_likelihood` are equivalent
+
+```{r}
+cury <- matrix(y, nrow = 1)
+curmu <- matrix(mu, nrow = 1)
+curw <- array(1, dim(cury))
+
+v3 <- sapply(log_thetas, function(lt){
+  .Call(edgeR:::.cxx_compute_apl, y = cury, mu = curmu, dispersion = edgeR:::.compressDispersions(cury, exp(lt)), 
+        weights = edgeR:::.compressWeights(cury, curw), adjust = TRUE, design = model_matrix)
+})
+
+plot(log_thetas, v1)
+lines(log_thetas, v2 + 9.5, col = "purple")
+lines(log_thetas, v3, col = "red")
+```
+
+
+
+
+Do gene MLE dispersion estimates
+
+## glmGamPoi
+
+```{r}
+disp_glmgampoi <- glmGamPoi::overdispersion_mle(y = assay(sce), mean = fit$Mu, model_matrix = fit$model_matrix,
+                              do_cox_reid_adjustment = TRUE)$estimates
+# disp_glmgampoi <- pmax(disp_glmgampoi$estimates, 1e-8)
+
+likelihood_glmgampoi <- sapply(seq_len(nrow(sce)), function(idx){
+  log_likelihood(assay(sce)[idx, ], mu = fit$Mu[idx, ], overdispersion = disp_glmgampoi[idx], model_matrix = fit$model_matrix)
+})
+
+```
+
+
+
+## DESeq2
+
+```{r}
+fitMu <- fit$Mu
+minmu <- 1e-6
+modelMatrix <- fit$model_matrix
+minDisp <- 1e-8
+maxDisp <- ncol(sce)
+alpha_hat <- pmin(pmax(roughDisp, minDisp), maxDisp)
+weights <- matrix(1, nrow=nrow(sce), ncol=ncol(sce))
+useWeights <- FALSE
+weightThreshold <- 1e-2
+fitMu[fitMu < minmu] <- minmu
+kappa_0 <- 1
+dispTol <- 1e-6
+maxit <- 100
+useCR <- TRUE
+
+disp_deseq <- DESeq2:::fitDispWrapper(ySEXP = assay(sce),
+               xSEXP = modelMatrix,
+               mu_hatSEXP = fitMu,
+               log_alphaSEXP = log(alpha_hat),
+               log_alpha_prior_meanSEXP = log(alpha_hat),
+               log_alpha_prior_sigmasqSEXP = 1, min_log_alphaSEXP = log(minDisp/10),
+               kappa_0SEXP = kappa_0, tolSEXP = dispTol,
+               maxitSEXP = maxit, usePriorSEXP = FALSE,
+               weightsSEXP = weights,
+               useWeightsSEXP = useWeights,
+               weightThresholdSEXP = weightThreshold,
+               useCRSEXP = useCR)$log_alpha
+
+disp_deseq <- log(pmin(pmax(exp(disp_deseq), minDisp), maxDisp))
+
+likelihood_deseq <- sapply(seq_len(nrow(sce)), function(idx){
+  log_likelihood(assay(sce)[idx, ], mu = fitMu[idx, ], overdispersion = exp(disp_deseq[idx]), model_matrix = modelMatrix)
+})
+
+
+
+```
+
+
+```{r}
+qplot(disp_glmgampoi, exp(disp_deseq), log = "xy") + geom_abline()
+qplot(likelihood_glmgampoi, likelihood_deseq) + geom_abline()
+```
+
+
+## edgeR 
 
 ```{r}
 
+grid.length=21
+grid.range=c(-10,10)
+spline.pts <- seq(from=grid.range[1], to=grid.range[2], length=grid.length)
+spline.disp <- 0.1 * 2^spline.pts
+grid.vals <- spline.disp/(1+spline.disp)
+l0 <- matrix(0, nrow(sce), grid.length)
+
+cury <- assay(sce)
+curmu <- fit$Mu
+curw <- array(1, dim(sce))
+
+
+
+for(i in seq_len(grid.length)) {
+	apl <- .Call(edgeR:::.cxx_compute_apl, y = cury, mu = curmu, dispersion = edgeR:::.compressDispersions(cury, spline.disp[i]), 
+             weights = edgeR:::.compressWeights(cury, curw), adjust = TRUE, design = fit$model_matrix)
+	l0[ ,i] <- apl
+}
+
+
+out.2 <- edgeR:::WLEB(theta=spline.pts, loglik=l0, prior.n = 0,
+			                overall=FALSE, trend=FALSE, individual = TRUE)
+
+disp_edger <- 0.1 * 2^out.2$individual
+
+likelihood_edger <- sapply(seq_len(nrow(sce)), function(idx){
+  log_likelihood(assay(sce)[idx, ], mu = curmu[idx, ], overdispersion = disp_edger[idx], model_matrix = fit$model_matrix)
+})
+
+```
+
+
+```{r}
+qplot(disp_glmgampoi, disp_edger, log = "xy") + geom_abline()
+qplot(likelihood_glmgampoi, likelihood_edger) + geom_abline()
+```
+
+
+
+
+Make Comparison plots
+
+
+
+
+```{r}
+p_de_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = exp(disp_deseq),
+       lik_gp = likelihood_glmgampoi, lik_de = likelihood_deseq) %>%
+  mutate(lik_cat = case_when(
+    abs(lik_gp - lik_de) < 1e-3 ~ "Equal",
+    lik_gp > lik_de ~  "glmGamPoi better", 
+    lik_gp < lik_de ~  "DESeq2/edgeR better"
+  )) %>%
+  mutate(lik_cat = factor(lik_cat, levels = c("Equal", "DESeq2/edgeR better", "glmGamPoi better"), ordered = TRUE)) %>%
+  mutate(disp_gp = ifelse(disp_gp < 1e-9, 1e-9, disp_gp)) %>%
+  {print(table(.$lik_cat, useNA = "always")); .} %>%
+  ggplot(aes(x = disp_gp, y = disp_de)) +
+    # geom_point(aes(color = lik_cat)) +
+    geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+    geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
+    scale_x_log10(name = "glmGamPoi", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+                  oob = scales::squish,
+                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
+                  labels = expression(10^-9, 10^-4, 1, 10^4)) + 
+    scale_y_log10(name = "DESeq2", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+                  oob = scales::squish,
+                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
+                  labels = expression(10^-9, 10^-4, 1, 10^4)) +
+    scale_color_discrete() +
+    # labs(title = "Dispersion MLE: DESeq2 vs glmGamPoi") +
+    cowplot::theme_cowplot()
+```
+
+
+```{r}
+p_er_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = disp_edger,
+       lik_gp = likelihood_glmgampoi, lik_de = likelihood_edger) %>%
+  mutate(lik_cat = case_when(
+    abs(lik_gp - lik_de) < 1e-3 ~ "Equal",
+    lik_gp > lik_de ~  "glmGamPoi better", 
+    lik_gp < lik_de ~  "DESeq2/edgeR better"
+  )) %>%
+  mutate(lik_cat = factor(lik_cat, levels = c("Equal", "DESeq2/edgeR better", "glmGamPoi better"), ordered = TRUE)) %>%
+  mutate(disp_gp = ifelse(disp_gp < 1e-9, 1e-9, disp_gp)) %>%
+  {print(table(.$lik_cat, useNA = "always")); .} %>%
+  ggplot(aes(x = disp_gp, y = disp_de)) +
+    geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+    geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
+    scale_x_log10(name = "glmGamPoi", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+                  oob = scales::squish,
+                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
+                  labels = expression(10^-9, 10^-4, 1, 10^4)) + 
+    scale_y_log10(name = "edgeR", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+                  oob = scales::squish,
+                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
+                  labels = expression(10^-9, 10^-4, 1, 10^4)) +
+    scale_color_discrete() +
+    # labs(title = "Dispersion MLE: edgeR vs glmGamPoi") +
+    cowplot::theme_cowplot()
+```
+
+
+
+
+
+
+```{r}
+cowplot::plot_grid(
+  cowplot::ggdraw() + cowplot::draw_figure_label("Dispersion Maximum Likelihood estimates", size = 20),
+  cowplot::plot_grid(p_de_gp + theme(legend.position = "none"),
+                     p_er_gp + theme(legend.position = "none"),
+                     nrow = 1),
+  cowplot::plot_grid(NULL,
+    cowplot::get_legend(p_de_gp + 
+                        guides(color = guide_legend(override.aes = list(alpha = 1, size = 3),
+                                                    title = "")) +
+                        theme(legend.position = "bottom")),
+    NULL, nrow = 1, rel_widths = c(0.8, 1, 1)),
+  nrow = 3, rel_heights = c(0.1, 1, 0.1),
+  align = "vh"
+)
+  
+cowplot::save_plot("plots/dispersion_mle_comparison.pdf", last_plot(), nrow = 1, ncol = 2, base_asp = 0.9)
 ```
 
 
@@ -20,6 +296,72 @@ Compare dispersion optimum
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+head(which(likelihood_deseq - likelihood_glmgampoi > 0.1))
+
+idx <- 94
+```
+
+
+
+```{r}
+tibble(disp_gp = disp_glmgampoi$estimates, disp_de = exp(disp_deseq$log_alpha),
+       dev_gp = deviance_glmgampoi, dev_de = deviance_deseq,
+       lik_gp = likelihood_glmgampoi, lik_de = likelihood_deseq)[idx, ]
+
+```
+
+
+
+```{r}
+
+log_thetas <- seq(-20, 10, l = 101)
+values <- sapply(log_thetas, function(lt){
+  glmGamPoi:::conventional_loglikelihood_fast(assay(sce)[idx, ], mu = fitMu[idx, ], log_theta = lt,
+                                              model_matrix = modelMatrix, do_cr_adj = TRUE)
+})
+
+deriv <- sapply(log_thetas, function(lt){
+  glmGamPoi:::conventional_score_function_fast(assay(sce)[idx, ], mu = fitMu[idx, ], log_theta = lt,
+                                              model_matrix = modelMatrix, do_cr_adj = TRUE)
+})
+
+plot(log_thetas, values)
+abline(v = log(disp_glmgampoi$estimates[idx]), col = "black")
+abline(v = disp_deseq$log_alpha[idx], col = "red")
+plot(log_thetas, deriv, col = (deriv < 0) + 1); abline(h= 0)
+abline(v = log(disp_glmgampoi$estimates[idx]), col = "black")
+abline(v = disp_deseq$log_alpha[idx], col = "red")
+```
 
 
 
