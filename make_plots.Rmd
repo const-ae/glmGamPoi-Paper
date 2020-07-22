@@ -729,14 +729,16 @@ p_scatter
 
 
 ```{r}
-tmp <- assay(sce)[str_replace(very_significant_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
-rownames(tmp) <- very_significant_genes_df$gene
+gene_number <- str_replace(very_significant_genes_df$gene, "gene_", "") %>% as.numeric()
+tmp <- assay(sce)[gene_number, ] 
+rownames(tmp) <- rowData(sce)$Symbol[gene_number]
+very_significant_genes_df$symbol <- rowData(sce)$Symbol[gene_number]
 very_significant_genes_df$max_count <- rowMaxs(tmp)
 
 p_comp_similar <- as_tibble(t(tmp)) %>%
   mutate(mouse = colData(sce)$Mouse,
          cell = seq_len(n())) %>%
-  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  pivot_longer(cols = 1:3, names_to ="symbol", values_to = "count") %>%
   ggplot(aes(x = mouse, y = count)) +
     ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
     ggsignif::geom_signif(data = very_significant_genes_df,
@@ -749,20 +751,21 @@ p_comp_similar <- as_tibble(t(tmp)) %>%
               hjust = 0.5, vjust = 0, lineheight = 0.8) +
     stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
-    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    facet_wrap(~ symbol, scales = "free", nrow = 1) +
     labs(title = "<span style='color: #a820e3'>Genes</span> with similar p-values", x = "") +
     cowplot::theme_cowplot() +
     theme(plot.title = ggtext::element_markdown())
 
-
-tmp2 <- assay(sce)[str_replace(very_different_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
-rownames(tmp2) <- very_different_genes_df$gene
+gene_number2 <- str_replace(very_different_genes_df$gene, "gene_", "") %>% as.numeric()
+tmp2 <- assay(sce)[gene_number2, ] 
+rownames(tmp2) <- rowData(sce)$Symbol[gene_number2]
+very_different_genes_df$symbol <- rowData(sce)$Symbol[gene_number2]
 very_different_genes_df$max_count <- rowMaxs(tmp2)
 
 p_comp_different <- as_tibble(t(tmp2)) %>%
   mutate(mouse = colData(sce)$Mouse,
          cell = seq_len(n())) %>%
-  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  pivot_longer(cols = 1:3, names_to ="symbol", values_to = "count") %>%
   ggplot(aes(x = mouse, y = count)) +
     ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
     ggsignif::geom_signif(data = very_different_genes_df,
@@ -775,7 +778,7 @@ p_comp_different <- as_tibble(t(tmp2)) %>%
               hjust = 0.5, vjust = 0, lineheight = 0.8) +
     stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
-    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    facet_wrap(~ symbol, scales = "free", nrow = 1) +
     labs(title = "<span style='color: #e6871c'>Genes</span> with very different p-values", x = "") +
     cowplot::theme_cowplot() +
     theme(plot.title = ggtext::element_markdown())
