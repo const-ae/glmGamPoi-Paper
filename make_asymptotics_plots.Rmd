@@ -1,0 +1,142 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+```
+
+
+
+
+```{r}
+asymp_bench_res <- read_tsv("data/asymp_bench_res.tsv")
+asymp_bench_res
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+p_cell_scaling <- asymp_bench_res %>%
+  filter(dimension == "Cell") %>%
+  filter(method %in% c("glm_gp",  "DESeq2", "edgeR")) %>%
+  group_by(job_id, method) %>%
+  mutate(rel_timing = timing_elapsed / timing_elapsed[number == min(number)]) %>%
+  mutate(rel_number = number / min(number)) %>%
+  ggplot(aes(x = rel_number, y = rel_timing)) +
+    geom_abline(intercept = 0, slope = 1, size = 2, linetype = "dashed") +
+    geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
+    # coord_fixed() +
+    labs(title = "Runtime vs Number of Cells",
+         y = "Relative duration") +
+    scale_x_continuous(breaks = 1:8, name = "Relative Number of Cells",
+                       sec.axis = sec_axis(trans = ~ .x * min(filter(asymp_bench_res, dimension == "Cell")$number),
+                                            name = "Number of Cells")) +
+    scale_y_continuous(breaks = seq(1, 24, by = 4), name = "Relative Runtime") +
+    cowplot::theme_cowplot() +
+    NULL
+
+p_cell_scaling
+
+
+p_gene_scaling <- asymp_bench_res %>%
+  filter(dimension == "Gene") %>%
+  filter(method %in% c("glm_gp", "DESeq2", "edgeR")) %>%
+  group_by(job_id, method) %>%
+  mutate(rel_timing = timing_elapsed / timing_elapsed[number == min(number)]) %>%
+  mutate(rel_number = number / min(number)) %>%
+  ggplot(aes(x = rel_number, y = rel_timing)) +
+    geom_abline(intercept = 0, slope = 1, size = 2, linetype = "dashed") +
+    geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
+    # coord_fixed() +
+    labs(title = "Runtime vs Number of Genes",
+         y = "Relative duration") +
+    scale_x_continuous(breaks = c(1, 3, 5.5, 8, 10), name = "Relative Number of Genes",
+                       sec.axis = sec_axis(trans = ~ .x * min(filter(asymp_bench_res, dimension == "Gene")$number),
+                                            name = "Number of Genes")) +
+    scale_y_continuous(breaks = seq(1, 24, by = 4), name = "Relative Runtime") +
+    cowplot::theme_cowplot() +
+    NULL
+
+p_gene_scaling
+```
+
+
+
+
+
+```{r}
+asympparam_bench_res <- read_tsv("data/asympparam_bench_res.tsv")
+asympparam_bench_res
+```
+
+
+
+
+
+```{r}
+p_param_scaling <- asympparam_bench_res %>%
+  filter(coefficient_type == "Cont") %>%
+  filter(method %in% c("glm_gp", "DESeq2", "edgeR")) %>%
+  group_by(job_id, method) %>%
+  mutate(rel_timing = timing_elapsed / timing_elapsed[number == min(number)]) %>%
+  mutate(rel_number = number / min(number)) %>%
+  ggplot(aes(x = rel_number, y = rel_timing)) +
+    geom_abline(intercept = 0, slope = 1, size = 2, linetype = "dashed") +
+    geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
+    # coord_fixed() +
+    labs(title = "Runtime vs Number of Parameters") +
+    scale_x_continuous(breaks = 1:8, name = "Number of Parameters") +
+    scale_y_continuous(breaks = 1:8, name = "Relative Runtime") +
+    cowplot::theme_cowplot() +
+    NULL
+
+p_param_scaling
+```
+
+
+```{r}
+cowplot::plot_grid(
+  cowplot::plot_grid(p_gene_scaling + theme(legend.position = "none"), 
+                     p_cell_scaling + theme(legend.position = "none"),
+                     p_param_scaling + theme(legend.position = "none"), 
+                     nrow = 1, align = "hv", labels = c("A", "B", "C")),
+  cowplot::plot_grid(NULL, cowplot::get_legend(p_gene_scaling + 
+                                                 guides(colour = guide_legend(title = "", override.aes = list(size = 3))) + 
+                                                 theme(legend.position = "bottom")), 
+                     NULL, rel_widths = c(0.68,1,1)),
+  nrow = 2, rel_heights = c(1, 0.1)
+)
+
+cowplot::save_plot("plots/empirical_scaling.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1.42)
+```
+
+
+
+
+```{r}
+asymp_bench_res %>%
+  filter(dimension == "Cell") %>%
+  filter(method %in% c("glm_gp",  "DESeq2", "edgeR")) %>%
+  ggplot(aes(x = number, y = timing_elapsed / 60)) +
+    geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
+    geom_smooth(method = "lm", formula = y ~ x - 1) +
+    xlim(0, NA) +
+    facet_wrap(~ method, scale = "free_y") +
+    cowplot::theme_cowplot()
+  
+```
+
+
