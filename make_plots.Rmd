@@ -316,6 +316,8 @@ pbmc4k_disp_df %>%
 ```
 
 
+
+
 ```{r}
 p_pbmc4k_coef <- pbmc4k_coef_df %>%
   pivot_longer(c(DESeq2, DESeq2_glmGamPoi, edgeR), names_to = "method") %>%
@@ -324,24 +326,26 @@ p_pbmc4k_coef <- pbmc4k_coef_df %>%
                                              "edgeR"), ordered = TRUE)) %>% 
   mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
   group_by(method) %>%
+  mutate(glm_gp = ifelse(glm_gp < -10, -10, glm_gp)) %>%
   group_map(function(df, method){
     p <-  ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
-      scale_color_viridis_c(guide = "none") +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
       scale_y_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
       labs(x = "glmGamPoi", y = method$method) +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
-
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
+p_pbmc4k_coef
 
 
 p_pbmc4k_disp <- pbmc4k_disp_df %>%
@@ -350,26 +354,31 @@ p_pbmc4k_disp <- pbmc4k_disp_df %>%
                                              "edgeR"), ordered = TRUE)) %>% 
   mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
   group_by(method) %>%
+  mutate(glm_gp = ifelse(glm_gp < 1e-9, 1e-9, glm_gp)) %>%
   group_map(function(df, method){
     p <- ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_log10(name = "glmGamPoi", limits = c(1e-9, 1e4), 
                     breaks = c(1e-6, 1e-2, 100),
-                    labels = expression(10^-6, 0.01, 100)) + 
+                    labels = expression(10^-6, 0.01, 100), 
+                    expand = expansion(add = 0)) + 
       scale_y_log10(name = method$method, limits = c(1e-9, 1e4),
                     breaks = c(1e-6, 1e-2, 100),
-                    labels = expression(10^-6, 0.01, 100)) +
-      scale_color_viridis_c(guide = "none") +
+                    labels = expression(10^-6, 0.01, 100),
+                    expand = expansion(add = 0)) +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
+p_pbmc4k_disp
 ```
 
 ```{r}
@@ -430,23 +439,25 @@ p_mouse_coef <- mouse_coef_df %>%
                                              "edgeR"), ordered = TRUE)) %>% 
   mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
   group_by(method) %>%
+  mutate(glm_gp = ifelse(glm_gp < -10, -10, glm_gp)) %>%
   group_map(function(df, method){
     p <-  ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
-      scale_color_viridis_c(guide = "none") +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
       scale_y_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
       labs(x = "glmGamPoi", y = method$method) +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
 
 # cowplot::save_plot("plots/mouse_coef.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1)
 
@@ -456,27 +467,31 @@ p_mouse_disp <- mouse_disp_df %>%
   mutate(method = factor(method, levels = c("DESeq2", "DESeq2_glmGamPoi",
                                              "edgeR"), ordered = TRUE)) %>% 
   mutate(method = fct_recode(method, "DESeq2 with glmGamPoi" = "DESeq2_glmGamPoi")) %>%
+  mutate(glm_gp = ifelse(glm_gp < 1e-9, 1e-9, glm_gp)) %>%
   group_by(method) %>%
   group_map(function(df, method){
     p <- ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_log10(name = "glmGamPoi", limits = c(1e-9, 1e4), 
                     breaks = c(1e-6, 1e-2, 100),
-                    labels = expression(10^-6, 0.01, 100)) + 
+                    labels = expression(10^-6, 0.01, 100), 
+                    expand = expansion(add = 0)) + 
       scale_y_log10(name = method$method, limits = c(1e-9, 1e4),
                     breaks = c(1e-6, 1e-2, 100),
-                    labels = expression(10^-6, 0.01, 100)) +
-      scale_color_viridis_c(guide = "none") +
+                    labels = expression(10^-6, 0.01, 100), 
+                    expand = expansion(add = 0)) +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
 # cowplot::save_plot("plots/mouse_disp.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1)
 
 
@@ -488,26 +503,28 @@ p_mouse_pval <- mouse_pval_df %>%
   mutate(glm_gp = ifelse(glm_gp == 0, 1e-200, glm_gp),
          value = ifelse(value == 0, 1e-200, value)) %>%
   group_by(method) %>%
+  mutate(glm_gp = ifelse(glm_gp < 1e-16, 1e-16, glm_gp)) %>%
   group_map(function(df, method){
     p <- ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_log10(name = "glmGamPoi", limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
                     breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
                     labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
       scale_y_log10(name = method$method, limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
                     breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
                     labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
-      scale_color_viridis_c(guide = "none") +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
 
 # cowplot::save_plot("plots/mouse_pval.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1)
 ```
@@ -589,21 +606,22 @@ p_brain_coef <- brain_coef_df %>%
   group_by(method) %>%
   group_map(function(df, method){
     p <-  ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
-      scale_color_viridis_c(guide = "none") +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
       scale_y_continuous(limits = c(-10, 10), oob = scales::squish, expand = expansion(add = c(0.1, 0.1))) +
       labs(x = "glmGamPoi", y = method$method) +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
 
 
 p_brain_disp <- brain_disp_df %>%
@@ -614,24 +632,27 @@ p_brain_disp <- brain_disp_df %>%
   group_by(method) %>%
   group_map(function(df, method){
     p <- ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_log10(name = "glmGamPoi", limits = c(1e-9, 1e4), 
                     breaks = c(1e-6, 1e-2, 100),
-                    labels = expression(10^-6, 0.01, 100)) + 
+                    labels = expression(10^-6, 0.01, 100),
+                    expand = expansion(add = 0)) + 
       scale_y_log10(name = method$method, limits = c(1e-9, 1e4),
                     breaks = c(1e-6, 1e-2, 100),
-                    labels = expression(10^-6, 0.01, 100)) +
-      scale_color_viridis_c(guide = "none") +
+                    labels = expression(10^-6, 0.01, 100), 
+                    expand = expansion(add = 0)) +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
 
 
 p_brain_pval <- brain_pval_df %>%
@@ -644,24 +665,25 @@ p_brain_pval <- brain_pval_df %>%
   group_by(method) %>%
   group_map(function(df, method){
     p <- ggplot(df, aes(x = glm_gp, y = value)) +
-      # ggpointdensity::geom_pointdensity(method = "default", size = 0.5) +
-      geom_abline(intercept = 0, slope = 1) +
-      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 1.5) +
+      geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
+      ggpointdensity::stat_pointdensity(geom = ggrastr:::GeomPointRast, method = "default", size = 3.5, aes(color = ..ndensity..)) +
+      scale_color_viridis_c(guide = guide_colorbar(title = "Normalized\nDensity")) +
       scale_x_log10(name = "glmGamPoi", limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
                     breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
                     labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
       scale_y_log10(name = method$method, limits = c(1e-16, 1), expand = expansion(add = c(0, 0)), 
                     breaks = c(1e-16, 1e-12, 1e-8, 1e-4, 1),
                     labels = expression(10^-16, 10^-12, 10^-8, 10^-4, 1)) +
-      scale_color_viridis_c(guide = "none") +
       cowplot::theme_cowplot()
     if(method$method != "DESeq2"){
-      p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
-    }else{
-      p
+      p <- p + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
     }
+    if(method != "edgeR") {
+      p <- p + theme(legend.position = "none")
+    }
+    p
   }) %>%
-  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.2, 1, 1))
+  cowplot::plot_grid(plotlist = ., nrow = 1, rel_widths = c(1.1, 1, 1.4))
 
 ```
 
@@ -848,14 +870,16 @@ p_scatter
 
 
 ```{r}
-tmp <- assay(sce)[str_replace(very_significant_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
-rownames(tmp) <- very_significant_genes_df$gene
+gene_number <- str_replace(very_significant_genes_df$gene, "gene_", "") %>% as.numeric()
+tmp <- assay(sce)[gene_number, ] 
+rownames(tmp) <- rowData(sce)$Symbol[gene_number]
+very_significant_genes_df$symbol <- rowData(sce)$Symbol[gene_number]
 very_significant_genes_df$max_count <- rowMaxs(tmp)
 
 p_comp_similar <- as_tibble(t(tmp)) %>%
   mutate(tomato = ifelse(colData(sce)$tomato, "knockout", "wildtype"),
          cell = seq_len(n())) %>%
-  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  pivot_longer(cols = 1:3, names_to ="symbol", values_to = "count") %>%
   ggplot(aes(x = tomato, y = count)) +
     ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
     ggsignif::geom_signif(data = very_significant_genes_df,
@@ -868,20 +892,22 @@ p_comp_similar <- as_tibble(t(tmp)) %>%
               hjust = 0.5, vjust = 0, lineheight = 0.8) +
     stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
-    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    facet_wrap(~ symbol, scales = "free", nrow = 1) +
     labs(title = "<span style='color: #a820e3'>Genes</span> with similar p-values", x = "") +
     cowplot::theme_cowplot() +
     theme(plot.title = ggtext::element_markdown())
 
 
-tmp2 <- assay(sce)[str_replace(very_different_genes_df$gene, "gene_", "") %>% as.numeric(), ] 
-rownames(tmp2) <- very_different_genes_df$gene
+gene_number2 <- str_replace(very_different_genes_df$gene, "gene_", "") %>% as.numeric()
+tmp2 <- assay(sce)[gene_number2, ] 
+rownames(tmp2) <- rowData(sce)$Symbol[gene_number2]
+very_different_genes_df$symbol <- rowData(sce)$Symbol[gene_number2]
 very_different_genes_df$max_count <- rowMaxs(tmp2)
 
 p_comp_different <- as_tibble(t(tmp2)) %>%
   mutate(tomato = ifelse(colData(sce)$tomato, "knockout", "wildtype"),
          cell = seq_len(n())) %>%
-  pivot_longer(cols = starts_with("gene_"), names_to ="gene", values_to = "count") %>%
+  pivot_longer(cols = 1:3, names_to ="symbol", values_to = "count") %>%
   ggplot(aes(x = tomato, y = count)) +
     ggrastr::geom_point_rast(position = ggplot2::position_jitter(height = 0.1)) +
     ggsignif::geom_signif(data = very_different_genes_df,
@@ -894,7 +920,7 @@ p_comp_different <- as_tibble(t(tmp2)) %>%
               hjust = 0.5, vjust = 0, lineheight = 0.8) +
     stat_summary(geom = "crossbar", color = "red", fun.data = mean_se) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.3))) +
-    facet_wrap(~ gene, scales = "free", nrow = 1) +
+    facet_wrap(~ symbol, scales = "free", nrow = 1) +
     labs(title = "<span style='color: #e6871c'>Genes</span> with very different p-values", x = "") +
     cowplot::theme_cowplot() +
     theme(plot.title = ggtext::element_markdown())
