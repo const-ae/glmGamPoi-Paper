@@ -120,7 +120,7 @@ cowplot::plot_grid(
   nrow = 2, rel_heights = c(1, 0.1)
 )
 
-cowplot::save_plot("plots/empirical_scaling.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1.42)
+cowplot::save_plot("plots/empirical_scaling.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1.0, base_height = 4.5)
 ```
 
 

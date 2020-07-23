@@ -196,11 +196,11 @@ p_dur_pbmc68k
 
 cowplot::plot_grid(
   cowplot::plot_grid(p_dur_pbmc4k, p_dur_brain, p_dur_pbmc68k, nrow = 1, align = "v",
-                    labels = c("PBMC4k", "Brain", "PBM68k")),
+                    labels = c("PBMC4k", "Brain20k", "PBM68k")),
   nrow = 1
 )
 
-cowplot::save_plot("plots/three_duration_plots.pdf", last_plot(), ncol = 3, nrow = 1)
+cowplot::save_plot("plots/three_duration_plots.pdf", last_plot(), ncol = 3, nrow = 1, base_asp = 1.3, base_height = 4.5)
 
 ```
 
