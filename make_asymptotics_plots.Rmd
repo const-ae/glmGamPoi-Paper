@@ -32,6 +32,7 @@ asymp_bench_res
 p_cell_scaling <- asymp_bench_res %>%
   filter(dimension == "Cell") %>%
   filter(method %in% c("glm_gp",  "DESeq2", "edgeR")) %>%
+  mutate(method = ifelse(method == "glm_gp", "glmGamPoi", method)) %>%
   group_by(job_id, method) %>%
   mutate(rel_timing = timing_elapsed / timing_elapsed[number == min(number)]) %>%
   mutate(rel_number = number / min(number)) %>%
@@ -45,6 +46,7 @@ p_cell_scaling <- asymp_bench_res %>%
                        sec.axis = sec_axis(trans = ~ .x * min(filter(asymp_bench_res, dimension == "Cell")$number),
                                             name = "Number of Cells")) +
     scale_y_continuous(breaks = seq(1, 24, by = 4), name = "Relative Runtime") +
+    scale_color_brewer(type = "qual", palette = 1) +
     cowplot::theme_cowplot() +
     NULL
 
@@ -54,6 +56,7 @@ p_cell_scaling
 p_gene_scaling <- asymp_bench_res %>%
   filter(dimension == "Gene") %>%
   filter(method %in% c("glm_gp", "DESeq2", "edgeR")) %>%
+  mutate(method = ifelse(method == "glm_gp", "glmGamPoi", method)) %>%
   group_by(job_id, method) %>%
   mutate(rel_timing = timing_elapsed / timing_elapsed[number == min(number)]) %>%
   mutate(rel_number = number / min(number)) %>%
@@ -67,6 +70,7 @@ p_gene_scaling <- asymp_bench_res %>%
                        sec.axis = sec_axis(trans = ~ .x * min(filter(asymp_bench_res, dimension == "Gene")$number),
                                             name = "Number of Genes")) +
     scale_y_continuous(breaks = seq(1, 24, by = 4), name = "Relative Runtime") +
+    scale_color_brewer(type = "qual", palette = 1) +
     cowplot::theme_cowplot() +
     NULL
 
@@ -88,8 +92,8 @@ asympparam_bench_res
 
 ```{r}
 p_param_scaling <- asympparam_bench_res %>%
-  filter(coefficient_type == "Cont") %>%
   filter(method %in% c("glm_gp", "DESeq2", "edgeR")) %>%
+  mutate(method = ifelse(method == "glm_gp", "glmGamPoi", method)) %>%
   group_by(job_id, method) %>%
   mutate(rel_timing = timing_elapsed / timing_elapsed[number == min(number)]) %>%
   mutate(rel_number = number / min(number)) %>%
@@ -98,8 +102,9 @@ p_param_scaling <- asympparam_bench_res %>%
     geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
     # coord_fixed() +
     labs(title = "Runtime vs Number of Parameters") +
-    scale_x_continuous(breaks = 1:8, name = "Number of Parameters") +
-    scale_y_continuous(breaks = 1:8, name = "Relative Runtime") +
+    scale_x_continuous(breaks = seq(1, 21, by = 5), name = "Number of Parameters") +
+    scale_y_continuous(breaks = seq(1, 26, by = 5), name = "Relative Runtime") +
+    scale_color_manual(values = "#fdc086") +
     cowplot::theme_cowplot() +
     NULL
 
@@ -135,6 +140,7 @@ asymp_bench_res %>%
     geom_smooth(method = "lm", formula = y ~ x - 1) +
     xlim(0, NA) +
     facet_wrap(~ method, scale = "free_y") +
+    scale_color_brewer(type = "qual", palette = 1) +
     cowplot::theme_cowplot()
   
 ```
