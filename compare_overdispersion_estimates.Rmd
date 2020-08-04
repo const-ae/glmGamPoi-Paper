@@ -222,15 +222,15 @@ p_de_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = exp(disp_deseq),
     # geom_point(aes(color = lik_cat)) +
     geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
     geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
-    scale_x_log10(name = "glmGamPoi", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
                   breaks = c(1e-9, 1e-4, 1e0, 1e4),
                   labels = expression(10^-9, 10^-4, 1, 10^4)) + 
-    scale_y_log10(name = "DESeq2", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    scale_y_log10(name = "DESeq2 dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
                   breaks = c(1e-9, 1e-4, 1e0, 1e4),
                   labels = expression(10^-9, 10^-4, 1, 10^4)) +
-    scale_color_discrete() +
+    scale_color_brewer(type = "qual", palette = 2) +
     # labs(title = "Dispersion MLE: DESeq2 vs glmGamPoi") +
     cowplot::theme_cowplot()
 ```
@@ -250,16 +250,15 @@ p_er_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = disp_edger,
   ggplot(aes(x = disp_gp, y = disp_de)) +
     geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
     geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
-    scale_x_log10(name = "glmGamPoi", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
                   breaks = c(1e-9, 1e-4, 1e0, 1e4),
                   labels = expression(10^-9, 10^-4, 1, 10^4)) + 
-    scale_y_log10(name = "edgeR", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    scale_y_log10(name = "edgeR dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
                   breaks = c(1e-9, 1e-4, 1e0, 1e4),
                   labels = expression(10^-9, 10^-4, 1, 10^4)) +
-    scale_color_discrete() +
-    # labs(title = "Dispersion MLE: edgeR vs glmGamPoi") +
+    scale_color_brewer(type = "qual", palette = 2) +
     cowplot::theme_cowplot()
 ```
 
@@ -270,21 +269,21 @@ p_er_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = disp_edger,
 
 ```{r}
 cowplot::plot_grid(
-  cowplot::ggdraw() + cowplot::draw_figure_label("Dispersion Maximum Likelihood estimates", size = 20),
+  # cowplot::ggdraw() + cowplot::draw_figure_label("Dispersion Maximum Likelihood estimates", size = 20),
   cowplot::plot_grid(p_de_gp + theme(legend.position = "none"),
                      p_er_gp + theme(legend.position = "none"),
                      nrow = 1),
   cowplot::plot_grid(NULL,
     cowplot::get_legend(p_de_gp + 
                         guides(color = guide_legend(override.aes = list(alpha = 1, size = 3),
-                                                    title = "")) +
+                                                    title = "Likelihood: ")) +
                         theme(legend.position = "bottom")),
-    NULL, nrow = 1, rel_widths = c(0.8, 1, 1)),
-  nrow = 3, rel_heights = c(0.1, 1, 0.1),
+    NULL, nrow = 1, rel_widths = c(1, 1, 1)),
+  nrow = 2, rel_heights = c(1, 0.1),
   align = "vh"
 )
   
-cowplot::save_plot("plots/dispersion_mle_comparison.pdf", last_plot(), nrow = 1, ncol = 2, base_asp = 0.9)
+cowplot::save_plot("plots/dispersion_mle_comparison.pdf", last_plot(), nrow = 1, ncol = 2, base_asp = 0.95)
 ```
 
 
