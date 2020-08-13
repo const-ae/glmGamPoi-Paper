@@ -21,7 +21,8 @@ assay(sce) <- as.matrix(assay(sce))
 
 # # To speed things up for now
 non_zero_rows <- matrixStats::rowSums2(assay(sce)) > 0
-sce <- sce[sample(which(non_zero_rows), size = 1000), ]
+# sce <- sce[sample(which(non_zero_rows), size = 1000), ]
+sce <- sce[non_zero_rows, ]
 
 print(dim(sce))
 
@@ -221,18 +222,30 @@ p_de_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = exp(disp_deseq),
   ggplot(aes(x = disp_gp, y = disp_de)) +
     # geom_point(aes(color = lik_cat)) +
     geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
-    geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
-    scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    # geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.05, size = 0.7) +
+    ggrastr::geom_point_rast(aes(color = lik_cat), position = position_jitter(width = 0.1, height = 0.1), alpha = 0.05, size = 0.7) +
+    scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(1e-2, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
-                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
-                  labels = expression(10^-9, 10^-4, 1, 10^4)) + 
-    scale_y_log10(name = "DESeq2 dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+                  breaks = c(0.01, 1, 100, 1e4),
+                  labels = expression(0.01, 1, 100, 10^4)) + 
+    scale_y_log10(name = "DESeq2 dispersion estimate", limits = c(1e-2, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
-                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
-                  labels = expression(10^-9, 10^-4, 1, 10^4)) +
-    scale_color_brewer(type = "qual", palette = 2) +
+                  breaks = c(0.01, 1, 100, 1e4),
+                  labels = expression(0.01, 1, 100, 10^4)) +
+    scale_color_manual(values = c("Equal"="grey", "DESeq2/edgeR better"="#EBAF2A", "glmGamPoi better"="#B92AEB")) +
+    # scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    #               oob = scales::squish,
+    #               breaks = c(1e-9, 1e-4, 1e0, 1e4),
+    #               labels = expression(10^-9, 10^-4, 1, 10^4)) + 
+    # scale_y_log10(name = "DESeq2 dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    #               oob = scales::squish,
+    #               breaks = c(1e-9, 1e-4, 1e0, 1e4),
+    #               labels = expression(10^-9, 10^-4, 1, 10^4)) +
+    # scale_color_brewer(type = "qual", palette = 2) +
     # labs(title = "Dispersion MLE: DESeq2 vs glmGamPoi") +
     cowplot::theme_cowplot()
+
+p_de_gp
 ```
 
 
@@ -249,17 +262,29 @@ p_er_gp <- tibble(disp_gp = disp_glmgampoi, disp_de = disp_edger,
   {print(table(.$lik_cat, useNA = "always")); .} %>%
   ggplot(aes(x = disp_gp, y = disp_de)) +
     geom_abline(intercept = 0, slope = 1, size = 1, linetype = "dashed") +
-    geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
-    scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    # geom_jitter(aes(color = lik_cat), width = 0.1, height = 0.1, alpha = 0.6, size = 0.1) +
+    ggrastr::geom_point_rast(aes(color = lik_cat), position = position_jitter(width = 0.1, height = 0.1), alpha = 0.05, size = 0.7) +
+    scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(1e-2, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
-                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
-                  labels = expression(10^-9, 10^-4, 1, 10^4)) + 
-    scale_y_log10(name = "edgeR dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+                  breaks = c(0.01, 1, 100, 1e4),
+                  labels = expression(0.01, 1, 100, 10^4)) + 
+    scale_y_log10(name = "DESeq2 dispersion estimate", limits = c(1e-2, 1e5), expand = expansion(add = c(0, 0)), 
                   oob = scales::squish,
-                  breaks = c(1e-9, 1e-4, 1e0, 1e4),
-                  labels = expression(10^-9, 10^-4, 1, 10^4)) +
-    scale_color_brewer(type = "qual", palette = 2) +
+                  breaks = c(0.01, 1, 100, 1e4),
+                  labels = expression(0.01, 1, 100, 10^4)) +
+    scale_color_manual(values = c("Equal"="grey", "DESeq2/edgeR better"="#EBAF2A", "glmGamPoi better"="#B92AEB")) +
+    # scale_x_log10(name = "glmGamPoi dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    #               oob = scales::squish,
+    #               breaks = c(1e-9, 1e-4, 1e0, 1e4),
+    #               labels = expression(10^-9, 10^-4, 1, 10^4)) + 
+    # scale_y_log10(name = "edgeR dispersion estimate", limits = c(8e-10, 1e5), expand = expansion(add = c(0, 0)), 
+    #               oob = scales::squish,
+    #               breaks = c(1e-9, 1e-4, 1e0, 1e4),
+    #               labels = expression(10^-9, 10^-4, 1, 10^4)) +
+    # scale_color_brewer(type = "qual", palette = 2) +
     cowplot::theme_cowplot()
+
+p_er_gp
 ```
 
 
