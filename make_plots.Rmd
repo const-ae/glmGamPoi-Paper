@@ -163,8 +163,8 @@ p_dur_pbmc68k <- pbmc68k_bench_res %>%
     stat_summary(geom = "col", fun.y = median, fill = "lightgrey") +
     ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
     annotate("text", x = 6.3, y = 200, label = "32,738 genes x 68,579 cells", hjust = 1, vjust = 1) +
-    annotate("text", x = 1, y = 30, label = "Process crashed: out of memory!", size = 4, hjust = 0, vjust = 0.5) +
-    annotate("text", x = 2, y = 30, label = "Process crashed: out of memory!", size = 4, hjust = 0, vjust = 0.5) +
+    annotate("text", x = 1, y = 30, label = "Computation aborted: out of memory!", size = 4, hjust = 0, vjust = 0.5) +
+    annotate("text", x = 2, y = 30, label = "Computation aborted: out of memory!", size = 4, hjust = 0, vjust = 0.5) +
     coord_flip() +
     scale_y_continuous(expand = expand_scale(add = c(0, 3)), 
                        limits = c(0, 200),
