@@ -1,0 +1,51 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+
+
+
+```{r}
+library(tidyverse)
+
+```
+
+
+
+
+```{r}
+pbmc68k_job_id <- c("62569214", "62569215", "62569216", "62569217", "62569218")
+pbmc68k_ext <- c("6fa46", "44b07", "b8e12", "24c7c", "e6025")
+
+
+pbmc68k_bench_res <- map_df(seq_along(pbmc68k_job_id), function(idx){
+  job_id  <- pbmc68k_job_id[idx]
+  extension  <- pbmc68k_ext[idx]
+  file_content <- read_lines(file.path("../run_benchmark", 
+                                 list.files(path = "../run_benchmark/", 
+                                            pattern = paste0("slurm-", job_id, "-.*.out"))))
+  starts_with_fit <- which(str_starts(file_content, "\\[1\\] \"Fit "))
+  timing_line <- starts_with_fit + 2
+  method <- str_match(file_content[starts_with_fit], "\\[1\\] \"Fit (.+)\"")[,2]
+  timings <- str_match(file_content[timing_line], "^\\s*(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s*$")[,2:4]
+  tibble(job_id, extension_id = extension, method, 
+         timing_user = as.numeric(timings[,1]),
+         timing_system = as.numeric(timings[,2]),
+         timing_elapsed = as.numeric(timings[,3]))
+})
+
+pbmc68k_bench_res %>%
+  ggplot(aes(x = timing_elapsed / 60, y = method)) +
+    geom_point() +
+    scale_x_continuous(limits = c(0, NA))
+
+write_tsv(pbmc68k_bench_res, "data/pbmc68k_bench_res.tsv")
+
+```
+
+
+
+

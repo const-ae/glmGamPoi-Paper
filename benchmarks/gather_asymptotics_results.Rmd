@@ -1,0 +1,70 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+```
+
+
+
+```{r}
+asymp_job_id <- c("63947031", "63947032", "63947035", "63947036", "63947037")
+asymp_ext <- c("7d28f", "51db1", "9895c", "9e804", "38e91")
+asymp_bench_res <- map_df(seq_along(asymp_job_id), function(idx){
+  job_id  <- asymp_job_id[idx]
+  extension  <- asymp_ext[idx]
+  file_content <- read_lines(file.path("../run_benchmark", 
+                                 list.files(path = "../run_benchmark/", 
+                                            pattern = paste0("slurm-", job_id, "-.*.out"))))
+  starts_with_cell_number <- which(str_starts(file_content, "\\[1\\] \"Cell Number: "))
+  starts_with_gene_number <- which(str_starts(file_content, "\\[1\\] \"Gene Number: "))
+  starts_with_fit <- which(str_starts(file_content, "\\[1\\] \"Fit "))
+  timing_line <- starts_with_fit + 2
+  cell_number <- as.numeric(str_match(file_content[starts_with_cell_number], "\\[1\\] \"Cell Number: (\\d+)\"")[,2])
+  gene_number <- as.numeric(str_match(file_content[starts_with_gene_number], "\\[1\\] \"Gene Number: (\\d+)\"")[,2])
+  method <- str_match(file_content[starts_with_fit], "\\[1\\] \"Fit (.+)\"")[,2]
+  timings <- str_match(file_content[timing_line], "^\\s*(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s*$")[,2:4]
+  tibble(job_id, extension_id = extension, method, 
+         dimension = c(rep("Cell", length(cell_number) * 6), rep("Gene", length(gene_number)* 6)),
+         number = rep(c(cell_number, gene_number), each = 6),
+         timing_user = as.numeric(timings[,1]),
+         timing_system = as.numeric(timings[,2]),
+         timing_elapsed = as.numeric(timings[,3]))
+})
+
+write_tsv(asymp_bench_res, "data/asymp_bench_res.tsv")
+
+```
+
+
+
+```{r}
+asympparam_job_id <- c("65110084", "65110087", "65110088", "65110089", "65110090")
+asympparam_ext <- c("4a44d", "459ef", "7fd86", "d14d1", "6efc7")
+asympparam_bench_res <- map_df(seq_along(asympparam_job_id), function(idx){
+  job_id  <- asympparam_job_id[idx]
+  extension  <- asympparam_ext[idx]
+  file_content <- read_lines(file.path("../run_benchmark", 
+                                 list.files(path = "../run_benchmark/", 
+                                            pattern = paste0("slurm-", job_id, "-.*.out"))))
+  starts_with_subsetter <- which(str_starts(file_content, "\\[1\\] \"Model matrix subsetter "))
+  starts_with_fit <- which(str_starts(file_content, "\\[1\\] \"Fit "))
+  timing_line <- starts_with_fit + 2
+  subsetting_number <- as.numeric(str_match(file_content[starts_with_subsetter], "\\[1\\] \"Model matrix subsetter (\\d+)\"")[,2])
+  method <- str_match(file_content[starts_with_fit], "\\[1\\] \"Fit (.+)\"")[,2]
+  timings <- str_match(file_content[timing_line], "^\\s*(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s*$")[,2:4]
+  tibble(job_id, extension_id = extension, method, 
+         number = subsetting_number,
+         timing_user = as.numeric(timings[,1]),
+         timing_system = as.numeric(timings[,2]),
+         timing_elapsed = as.numeric(timings[,3]))
+})
+
+write_tsv(asympparam_bench_res, "data/asympparam_bench_res.tsv")
+
+```
+

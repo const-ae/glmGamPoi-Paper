@@ -1,0 +1,72 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(tidyverse)
+library(glmGamPoi)
+library(DESeq2)
+library(DelayedArray)
+options(DelayedArray.block.size=2e9)
+
+```
+
+```{r}
+sce <- MouseGastrulationData::EmbryoAtlasData("processed")
+sce2 <- MouseGastrulationData::Tal1ChimeraData("processed")
+sce3 <- MouseGastrulationData::WTChimeraData("processed")
+```
+
+
+```{r}
+dim(sce)
+dim(sce2)
+dim(sce3)
+row_sums <- sparseMatrixStats::rowSums2(assay(sce3))
+col_sums <- sparseMatrixStats::colSums2(assay(sce3))
+summary(row_sums)
+summary(col_sums)
+assay(sce3) <- as.matrix(assay(sce3))
+```
+
+
+```{r}
+
+saveRDS(sce3, "data/mouse_gastrulation_chimera_summarized_experiment.RDS")
+
+
+```
+
+
+```{r}
+sce3_red <- sce3[rank(row_sums, ties = "first") / length(row_sums) > 0.99, ]
+dim(sce3_red)
+
+```
+
+
+```{r}
+system.time({
+  fit_red <- glm_gp(sce3_red, design = ~ pool + stage + tomato, verbose = TRUE,
+                size_factors = fit$size_factors)
+  res <- test_de(fit_red, reduced_design = ~ 1)
+})
+```
+
+
+
+```{r}
+system.time({
+  model_matrix <- fit_red$model_matrix
+  edgeR_data <- edgeR::DGEList(assay(sce3_red))
+  edgeR_data <- edgeR::calcNormFactors(edgeR_data)
+  edgeR_data <- edgeR::estimateDisp(edgeR_data, design = model_matrix)
+  edgeR_fit <- edgeR::glmQLFit(edgeR_data, design = model_matrix)
+  edgeR_test <- edgeR::glmQLFTest(edgeR_fit, coef = 2:4)
+  res_edgeR <- edgeR::topTags(edgeR_test)
+})
+```
+
