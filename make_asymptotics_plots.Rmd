@@ -40,7 +40,7 @@ p_cell_scaling <- asymp_bench_res %>%
     geom_abline(intercept = 0, slope = 1, size = 2, linetype = "dashed") +
     geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
     # coord_fixed() +
-    labs(title = "Runtime vs Number of Cells",
+    labs(title = "Runtime vs Number of Cells\n",
          y = "Relative duration") +
     scale_x_continuous(breaks = 1:8, name = "Relative Number of Cells",
                        sec.axis = sec_axis(trans = ~ .x * min(filter(asymp_bench_res, dimension == "Cell")$number),
@@ -64,7 +64,7 @@ p_gene_scaling <- asymp_bench_res %>%
     geom_abline(intercept = 0, slope = 1, size = 2, linetype = "dashed") +
     geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
     # coord_fixed() +
-    labs(title = "Runtime vs Number of Genes",
+    labs(title = "Runtime vs Number of Genes\n",
          y = "Relative duration") +
     scale_x_continuous(breaks = c(1, 3, 5.5, 8, 10), name = "Relative Number of Genes",
                        sec.axis = sec_axis(trans = ~ .x * min(filter(asymp_bench_res, dimension == "Gene")$number),
@@ -101,8 +101,8 @@ p_param_scaling <- asympparam_bench_res %>%
     geom_abline(intercept = 0, slope = 1, size = 2, linetype = "dashed") +
     geom_line(aes(color = method, group = paste0(job_id, "-", method))) +
     # coord_fixed() +
-    labs(title = "Runtime vs Number of Parameters") +
-    scale_x_continuous(breaks = seq(1, 21, by = 5), name = "Number of Parameters") +
+    labs(title = "Runtime vs Number of Covariates\nin Design Matrix") +
+    scale_x_continuous(breaks = seq(1, 21, by = 5), name = "Number of Covariates") +
     scale_y_continuous(breaks = seq(1, 26, by = 5), name = "Relative Runtime") +
     scale_color_manual(values = "#fdc086") +
     cowplot::theme_cowplot() +
