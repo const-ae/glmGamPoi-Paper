@@ -98,6 +98,38 @@ cowplot::save_plot("plots/mouse_duration.pdf", p_dur_mouse)
 
 ```
 
+```{r}
+p_dur_mouse_squeeze <- mouse_bench_res %>%
+  mutate(method = factor(method, levels = c("glm_gp", "glm_gp on_disk",
+                                             "glm_gp overdispersion = 0",
+                                             "DESeq2 with glmGamPoi",
+                                             "edgeR", "DESeq2"), ordered = TRUE)) %>% 
+  mutate(method =  fct_rev(method)) %>%
+  ggplot(aes(y = timing_elapsed / 60 / 60, x = method)) +
+    stat_summary(geom = "col", fun.y = median, fill = "lightgrey", width = 0.7) +
+    ggbeeswarm::geom_quasirandom(groupOnX = TRUE) +
+    annotate("text", x = 6.3, y = 9, label = "29,453 genes x 30,703 cells", hjust = 1, vjust = 1) +
+    coord_flip() +
+    scale_y_continuous(expand = expand_scale(add = c(0, 0)), 
+                       limits = c(0, 9),
+                       breaks = 0:9,
+                       position = "right",
+                       sec.axis = sec_axis(trans = ~ .x / median(mouse_bench_res$timing_elapsed[mouse_bench_res$method == "glm_gp"]) * 60 * 60,
+                                           breaks = c(1, 2, 4, 8, 16),
+                                           name = "Relative Duration")) +
+    scale_x_discrete(labels = c("glm_gp" = "glmGamPoi (in-memory)",  "glm_gp on_disk"=  "glmGamPoi (on-disk)",
+                                "glm_gp overdispersion = 0" = "glmGamPoi (overdispersion = 0)",
+                                "edgeR" = "edgeR", "DESeq2" = "DESeq2",
+                                "DESeq2 with glmGamPoi" =  "DESeq2 + glmGamPoi")) +
+    xlab("") + ylab("Duration [hours]") +
+    cowplot::theme_cowplot() +
+    theme(plot.caption = element_text(vjust = 0, hjust = 0))
+
+
+p_dur_mouse_squeeze
+
+cowplot::save_plot("plots/mouse_duration_squeeze.pdf", p_dur_mouse_squeeze, base_height = 2, base_asp = 2.8, scale = 1.2)
+```
 
 
 
