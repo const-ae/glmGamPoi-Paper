@@ -2,7 +2,7 @@
 
 > glmGamPoi: Fitting Gamma-Poisson Generalized Linear Models on Single Cell Count Data  
 > Constantin Ahlmann-Eltze, Wolfgang Huber  
-> bioRxiv 2020.08.13.249623; doi: https://doi.org/10.1101/2020.08.13.249623
+> Bioinformatics; 2020-12-09; doi: https://doi.org/10.1093/bioinformatics/btaa1009
 
 This repository contains the code that was used to generate the figures for the paper that describes the [glmGamPoi](https://github.com/const-ae/glmGamPoi) package.
 
